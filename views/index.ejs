@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Clone</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #312e2b;
+            color: #e0ddd5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── Layout ── */
+        .game-container {
+            display: flex;
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        /* ── Chessboard ── */
+        .board-outer {
+            position: relative;
+        }
+
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 560px;
+            height: 560px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .chessboard.flipped {
+            transform: rotate(180deg);
+        }
+
+        .chessboard.flipped .piece {
+            transform: rotate(180deg);
+        }
+
+        .square {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.8rem;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .square.light {
+            background-color: #ebecd0;
+        }
+
+        .square.dark {
+            background-color: #739552;
+        }
+
+        .square:hover {
+            filter: brightness(1.06);
+        }
+
+        .square.selected.light {
+            background-color: #f6f682 !important;
+        }
+
+        .square.selected.dark {
+            background-color: #bbcc44 !important;
+        }
+
+        .square.last-move.light {
+            background-color: #f6f682 !important;
+        }
+
+        .square.last-move.dark {
+            background-color: #bbcc44 !important;
+        }
+
+        .square.valid-move::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 50%;
+        }
+
+        .square.valid-capture::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: transparent;
+            box-shadow: inset 0 0 0 7px rgba(0, 0, 0, 0.12);
+        }
+
+        /* ── Pieces ── */
+        .piece {
+            cursor: grab;
+            line-height: 1;
+            transition: transform 0.05s ease;
+        }
+
+        .piece:active {
+            cursor: grabbing;
+            transform: scale(1.15);
+        }
+
+        .piece.white {
+            color: #ffffff;
+            text-shadow:
+                0 1px 2px rgba(0,0,0,0.4),
+                0 0 1px rgba(0,0,0,0.3);
+        }
+
+        .piece.black {
+            color: #1a1a1a;
+            text-shadow:
+                0 1px 2px rgba(0,0,0,0.15),
+                0 0 0 rgba(0,0,0,0);
+        }
+
+        /* ── Rank / File labels ── */
+        .coord-label {
+            position: absolute;
+            font-size: 0.65rem;
+            font-weight: 700;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .rank-label {
+            left: 3px;
+        }
+
+        .file-label {
+            right: 3px;
+            bottom: 2px;
+        }
+
+        .coord-on-light {
+            color: #739552;
+        }
+
+        .coord-on-dark {
+            color: #ebecd0;
+        }
+
+        /* ── Side Panel ── */
+        .side-panel {
+            width: 280px;
+            background-color: #272522;
+            border-radius: 3px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-section {
+            padding: 0.85rem 1rem;
+        }
+
+        .panel-section + .panel-section {
+            border-top: 1px solid #3a3733;
+        }
+
+        /* ── Player Bars ── */
+        .player-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.65rem 1rem;
+            background-color: #272522;
+        }
+
+        .player-bar.top {
+            border-bottom: 1px solid #3a3733;
+        }
+
+        .player-bar.bottom {
+            border-top: 1px solid #3a3733;
+            margin-top: auto;
+        }
+
+        .player-bar.active-turn {
+            background-color: #2b2926;
+        }
+
+        .player-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .player-avatar.white-av {
+            background-color: #e0ddd5;
+            color: #312e2b;
+        }
+
+        .player-avatar.black-av {
+            background-color: #1a1a1a;
+            color: #b0ada5;
+            border: 1px solid #3a3733;
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-weight: 600;
+            font-size: 0.82rem;
+            color: #e0ddd5;
+        }
+
+        .player-rating {
+            font-size: 0.68rem;
+            color: #9e9b93;
+        }
+
+        .turn-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #81b64c;
+            flex-shrink: 0;
+            display: none;
+        }
+
+        .player-bar.active-turn .turn-dot {
+            display: block;
+        }
+
+        /* ── Status ── */
+        .status-text {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-align: center;
+            padding: 0.55rem 0;
+            color: #81b64c;
+        }
+
+        .status-text.waiting {
+            color: #d4a843;
+        }
+
+        .status-text.check {
+            color: #e05555;
+        }
+
+        .status-text.spectating {
+            color: #9e9b93;
+        }
+
+        /* ── Move History ── */
+        .move-list-header {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #9e9b93;
+            padding: 0.5rem 1rem 0.3rem;
+            font-weight: 600;
+        }
+
+        .move-list {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 120px;
+            max-height: 280px;
+        }
+
+        .move-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .move-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .move-list::-webkit-scrollbar-thumb {
+            background: #3a3733;
+            border-radius: 4px;
+        }
+
+        .move-row {
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .move-row:nth-child(odd) {
+            background-color: #2b2926;
+        }
+
+        .move-num {
+            width: 36px;
+            text-align: center;
+            color: #9e9b93;
+            font-size: 0.72rem;
+            flex-shrink: 0;
+            padding: 0.3rem 0;
+        }
+
+        .move-cell {
+            flex: 1;
+            padding: 0.3rem 0.5rem;
+            color: #e0ddd5;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+        }
+
+        .move-cell:hover {
+            background-color: #3a3733;
+        }
+
+        .empty-state {
+            color: #5e5c57;
+            font-size: 0.78rem;
+            text-align: center;
+            padding: 2rem 1rem;
+        }
+
+        /* ── Game Over Modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #312e2b;
+            border: 1px solid #3a3733;
+            border-radius: 8px;
+            padding: 2rem 2.5rem;
+            text-align: center;
+            color: #e0ddd5;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+            min-width: 300px;
+        }
+
+        .modal-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            color: #e0ddd5;
+        }
+
+        .modal-message {
+            color: #9e9b93;
+            margin-bottom: 1.25rem;
+            font-size: 0.85rem;
+        }
+
+        .modal-btn {
+            padding: 0.55rem 1.6rem;
+            border-radius: 5px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            background: #81b64c;
+            color: #fff;
+            font-size: 0.85rem;
+            transition: background-color 0.15s ease;
+        }
+
+        .modal-btn:hover {
+            background: #6fa33e;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <!-- Side Panel -->
+        <div class="side-panel">
+            <!-- Opponent (Black) at top -->
+            <div id="player-black" class="player-bar top">
+                <div class="player-avatar black-av">♚</div>
+                <div class="player-info">
+                    <div class="player-name">Black</div>
+                    <div class="player-rating">Player 2</div>
+                </div>
+                <div class="turn-dot"></div>
+            </div>
+
+            <!-- Status -->
+            <div id="status-text" class="status-text waiting">Waiting for opponent…</div>
+
+            <!-- Moves -->
+            <div class="move-list-header">Moves</div>
+            <div id="move-list" class="move-list">
+                <div class="empty-state">No moves yet</div>
+            </div>
+
+            <!-- You (White) at bottom -->
+            <div id="player-white" class="player-bar bottom active-turn">
+                <div class="player-avatar white-av">♔</div>
+                <div class="player-info">
+                    <div class="player-name">White</div>
+                    <div class="player-rating">Player 1</div>
+                </div>
+                <div class="turn-dot"></div>
+            </div>
+        </div>
+
+        <!-- Board -->
+        <div class="board-outer">
+            <div id="chessboard" class="chessboard"></div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modal-icon" class="modal-icon">👑</div>
+            <div id="modal-title" class="modal-title">Game Over</div>
+            <div id="modal-message" class="modal-message"></div>
+            <button class="modal-btn" onclick="location.reload()">New Game</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="/js/chessgame.js"></script>
+</body>
+</html>
